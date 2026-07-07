@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { cookies } from "next/headers";
+import { createSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth";
 
 const loginSchema = z.object({
     email: z.string().email("Invalid email address."),
@@ -53,6 +55,18 @@ export async function POST(request: Request) {
             );
         }
 
+        const token = createSessionToken(user.id);
+
+        const cookieStore = await cookies();
+
+        cookieStore.set(SESSION_COOKIE_NAME, token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+            path: "/",
+            maxAge: 60 * 60 * 24 * 7,
+        });
+
         return Response.json({
             ok: true,
             user: {
@@ -61,6 +75,8 @@ export async function POST(request: Request) {
                 email: user.email,
             },
         });
+
+        
     } catch (error) {
         console.error("Login error:", error);
 

@@ -30,3 +30,6 @@ pnpm-debug.log*
 
 # prisma generated client if generated locally
 /lib/generated/prisma
+
+
+cookies.txt
