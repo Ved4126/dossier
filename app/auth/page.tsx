@@ -10,10 +10,73 @@ export default function AuthPage() {
   const [mode, setMode] = useState<"signup" | "login">("signup");
   const router = useRouter();
 
-  function onSubmit(e: FormEvent) {
-    e.preventDefault();
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
+  e.preventDefault();
+
+  setError("");
+  setIsLoading(true);
+
+  try {
+    if (mode === "signup") {
+      if (password !== confirmPassword) {
+        setError("Passwords do not match.");
+        return;
+      }
+
+      const signupResponse = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name,
+          email,
+          password,
+        }),
+      });
+
+      const signupData = await signupResponse.json();
+
+      if (!signupResponse.ok) {
+        setError(signupData.error || "Could not create account.");
+        return;
+      }
+    }
+
+    const loginResponse = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email,
+        password,
+      }),
+    });
+
+    const loginData = await loginResponse.json();
+
+    if (!loginResponse.ok) {
+      setError(loginData.error || "Could not log in.");
+      return;
+    }
+
     router.push("/dashboard");
+    router.refresh();
+  } catch {
+    setError("Something went wrong. Please try again.");
+  } finally {
+    setIsLoading(false);
   }
+}
 
   return (
     <div className="min-h-screen grid lg:grid-cols-2">
@@ -35,15 +98,63 @@ export default function AuthPage() {
             </p>
 
             <form onSubmit={onSubmit} className="mt-6 space-y-3">
-              {mode === "signup" && <Field label="Full name" placeholder="Jane Doe" />}
-              <Field label="Email" type="email" placeholder="you@example.com" />
-              <Field label="Password" type="password" placeholder="••••••••" />
-              {mode === "signup" && <Field label="Confirm password" type="password" placeholder="••••••••" />}
-              <button type="submit" className="w-full mt-3 font-typewriter uppercase tracking-widest text-sm bg-stamp text-paper px-5 py-3 rounded-sm hover:bg-stamp-dark transition shadow inline-flex items-center justify-center gap-2 group">
-                {mode === "signup" ? "Open Case" : "Reopen Case"}
-                <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition" />
-              </button>
-            </form>
+  {mode === "signup" && (
+    <Field
+      label="Full name"
+      placeholder="Your name"
+      value={name}
+      onChange={(e) => setName(e.target.value)}
+      required={mode === "signup"}
+    />
+  )}
+
+  <Field
+    label="Email"
+    type="email"
+    placeholder="you@example.com"
+    value={email}
+    onChange={(e) => setEmail(e.target.value)}
+    required
+  />
+
+  <Field
+    label="Password"
+    type="password"
+    placeholder="••••••••"
+    value={password}
+    onChange={(e) => setPassword(e.target.value)}
+    required
+  />
+
+  {mode === "signup" && (
+    <Field
+      label="Confirm password"
+      type="password"
+      placeholder="••••••••"
+      value={confirmPassword}
+      onChange={(e) => setConfirmPassword(e.target.value)}
+      required={mode === "signup"}
+    />
+  )}
+
+  {error && (
+    <div className="rounded-sm border border-stamp bg-stamp/10 px-3 py-2 text-sm text-stamp">
+      {error}
+    </div>
+  )}
+
+  <button
+    type="submit"
+    disabled={isLoading}
+    className="w-full mt-3 font-typewriter uppercase tracking-widest text-sm bg-stamp text-paper px-5 py-3 rounded-sm hover:bg-stamp-dark transition shadow inline-flex items-center justify-center gap-2 group disabled:opacity-60 disabled:cursor-not-allowed"
+  >
+    {isLoading
+      ? "Checking file..."
+      : mode === "signup"
+        ? "Open Case"
+        : "Reopen Case"}
+  </button>
+</form>
 
             <div className="mt-6 text-center">
               <Link href="/" className="font-typewriter text-xs uppercase tracking-widest text-ink-soft hover:text-stamp">← back to file room</Link>

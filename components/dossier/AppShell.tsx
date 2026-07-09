@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutGrid, FilePlus2, FolderArchive, BarChart3, Settings, Search, User } from "lucide-react";
 import { type ReactNode } from "react";
+import { LogoutButton } from "@/components/dossier/LogoutButton";
 
 const nav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutGrid },
@@ -38,6 +39,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               </Link>
             );
           })}
+
+          <LogoutButton /> 
         </div>
         <div className="paper-card rounded-t-none rounded-b-lg p-6 sm:p-8 min-h-[70vh]">
           {children}
