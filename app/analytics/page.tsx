@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import type { Application, ResumeVersion } from "@prisma/client";
 
 const statusList = [
   "Applied",
@@ -9,6 +10,14 @@ const statusList = [
   "Rejected",
   "Offer",
 ] as const;
+
+type ApplicationWithResume = Application & {
+  resumeVersion: ResumeVersion | null;
+};
+
+type ResumeWithApplications = ResumeVersion & {
+  applications: Application[];
+};
 
 function fromDatabaseStatus(status: string) {
   switch (status) {
@@ -34,7 +43,7 @@ export default async function Analytics() {
     redirect("/auth");
   }
 
-  const applications = await prisma.application.findMany({
+  const applications: ApplicationWithResume[] = await prisma.application.findMany({
     where: {
       userId: user.id,
     },
@@ -46,7 +55,7 @@ export default async function Analytics() {
     },
   });
 
-  const resumes = await prisma.resumeVersion.findMany({
+  const resumes: ResumeWithApplications[] = await prisma.resumeVersion.findMany({
     where: {
       userId: user.id,
     },
