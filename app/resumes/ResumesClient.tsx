@@ -315,26 +315,34 @@ export default function ResumesClient() {
                 </div>
 
                 <div className="mt-4 flex gap-2">
-                  <SmallBtn icon={Eye}>View</SmallBtn>
+  <a
+    href={`/api/resumes/${resume.id}`}
+    target="_blank"
+    rel="noreferrer"
+    className="inline-flex items-center gap-1.5 font-typewriter text-[10px] uppercase tracking-widest px-2.5 py-1.5 rounded-sm transition border border-ink/30 text-ink hover:bg-paper-2"
+  >
+    <Eye className="h-3 w-3" />
+    View
+  </a>
 
-                  <a
-                    href={resume.fileUrl}
-                    download={resume.fileName}
-                    className="inline-flex items-center gap-1.5 font-typewriter text-[10px] uppercase tracking-widest px-2.5 py-1.5 rounded-sm transition border border-ink/30 text-ink hover:bg-paper-2"
-                  >
-                    <Download className="h-3 w-3" />
-                    Download
-                  </a>
+  <a
+    href={`/api/resumes/${resume.id}`}
+    download={resume.fileName}
+    className="inline-flex items-center gap-1.5 font-typewriter text-[10px] uppercase tracking-widest px-2.5 py-1.5 rounded-sm transition border border-ink/30 text-ink hover:bg-paper-2"
+  >
+    <Download className="h-3 w-3" />
+    Download
+  </a>
 
-                  <SmallBtn
-                    icon={Trash2}
-                    danger
-                    onClick={() => deleteResume(resume.id)}
-                    disabled={isSaving}
-                  >
-                    Delete
-                  </SmallBtn>
-                </div>
+  <SmallBtn
+    icon={Trash2}
+    danger
+    onClick={() => deleteResume(resume.id)}
+    disabled={isSaving}
+  >
+    Delete
+  </SmallBtn>
+</div>
               </div>
             </div>
           ))}
