@@ -69,15 +69,17 @@ export default async function CasePage({ params }: CasePageProps) {
         appliedDate: formatDate(application.appliedDate),
         lastUpdated: formatDate(application.updatedAt),
         resumeVersion: application.resumeVersion
-          ? {
-              label: application.resumeVersion.label,
-              fileName: application.resumeVersion.fileName,
-              uploadedAt: application.resumeVersion.uploadedAt
-                .toISOString()
-                .slice(0, 10),
-              mimeType: application.resumeVersion.mimeType,
-            }
-          : null,
+  ? {
+      id: application.resumeVersion.id,
+      label: application.resumeVersion.label,
+      fileName: application.resumeVersion.fileName,
+      fileUrl: application.resumeVersion.fileUrl,
+      uploadedAt: application.resumeVersion.uploadedAt
+        .toISOString()
+        .slice(0, 10),
+      mimeType: application.resumeVersion.mimeType,
+    }
+  : null,
       }}
     />
   );

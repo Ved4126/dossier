@@ -4,20 +4,41 @@ import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { statusList } from "@/lib/mock-data";
-import {
-  addResume,
-  fileToDataUrl,
-  getStoredResumes,
-  type StoredResume,
-} from "@/lib/storage";
 import { Paperclip, Upload } from "lucide-react";
+
+type ResumeOption = {
+  id: string;
+  label: string;
+  fileName: string;
+  fileUrl: string;
+  mimeType: string | null;
+  fileSize: number | null;
+  uploadedAt: string;
+  linkedApplications: number;
+};
+
+function fileToDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      resolve(String(reader.result));
+    };
+
+    reader.onerror = () => {
+      reject(new Error("Could not read file."));
+    };
+
+    reader.readAsDataURL(file);
+  });
+}
 
 export default function NewApplicationClient() {
   const router = useRouter();
 
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
-  const [resumeOptions, setResumeOptions] = useState<StoredResume[]>([]);
+  const [resumeOptions, setResumeOptions] = useState<ResumeOption[]>([]);
   const [selectedResumeId, setSelectedResumeId] = useState("");
 
   const [showUploadResume, setShowUploadResume] = useState(false);
@@ -25,13 +46,28 @@ export default function NewApplicationClient() {
   const [newResumeLabel, setNewResumeLabel] = useState("");
 
   useEffect(() => {
-    const storedResumes = getStoredResumes();
-    setResumeOptions(storedResumes);
+  async function loadResumes() {
+    try {
+      const response = await fetch("/api/resumes");
+      const data = await response.json();
 
-    if (storedResumes.length > 0) {
-      setSelectedResumeId(storedResumes[0].id);
+      if (!response.ok) {
+        setError(data.error || "Could not load resumes.");
+        return;
+      }
+
+      setResumeOptions(data.resumes);
+
+      if (data.resumes.length > 0) {
+        setSelectedResumeId(data.resumes[0].id);
+      }
+    } catch {
+      setError("Something went wrong while loading resumes.");
     }
-  }, []);
+  }
+
+  loadResumes();
+}, []);
 
   function toDatabaseStatus(status: string) {
   switch (status) {
@@ -70,25 +106,36 @@ export default function NewApplicationClient() {
       return;
     }
 
-    if (showUploadResume && newResumeFile) {
-      const fileUrl = await fileToDataUrl(newResumeFile);
+    let resumeVersionId = selectedResumeId || null;
 
-      const uploadedResume: StoredResume = {
-        id: crypto.randomUUID(),
-        label:
-          newResumeLabel.trim() ||
-          newResumeFile.name.replace(/\.[^/.]+$/, ""),
-        fileName: newResumeFile.name,
-        fileType: newResumeFile.type,
-        fileSize: newResumeFile.size,
-        fileUrl,
-        uploadedAt: new Date().toISOString(),
-        linkedApplications: 0,
-      };
+if (showUploadResume && newResumeFile) {
+  const fileUrl = await fileToDataUrl(newResumeFile);
 
-      addResume(uploadedResume);
-      setSelectedResumeId(uploadedResume.id);
-    }
+  const resumeResponse = await fetch("/api/resumes", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      label:
+        newResumeLabel.trim() ||
+        newResumeFile.name.replace(/\.[^/.]+$/, ""),
+      fileName: newResumeFile.name,
+      fileUrl,
+      mimeType: newResumeFile.type || null,
+      fileSize: newResumeFile.size,
+    }),
+  });
+
+  const resumeData = await resumeResponse.json();
+
+  if (!resumeResponse.ok) {
+    setError(resumeData.error || "Could not upload resume.");
+    return;
+  }
+
+  resumeVersionId = resumeData.resume.id;
+}
 
     const dbStatus = toDatabaseStatus(status);
 
@@ -98,12 +145,13 @@ export default function NewApplicationClient() {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        company,
-        role,
-        jobDescription,
-        status: dbStatus,
-        appliedDate,
-      }),
+  company,
+  role,
+  jobDescription,
+  status: dbStatus,
+  appliedDate,
+  resumeVersionId,
+}),
     });
 
     const data = await response.json();
@@ -213,6 +261,8 @@ export default function NewApplicationClient() {
               onChange={(e) => setSelectedResumeId(e.target.value)}
               className="paper-card-2 rounded-sm px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-stamp/50"
             >
+
+                <option value="">No resume linked yet</option>
               {resumeOptions.map((resume) => (
                 <option key={resume.id} value={resume.id}>
                   {resume.label} — {resume.fileName}

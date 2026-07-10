@@ -16,6 +16,8 @@ export type StoredApplication = {
   appliedDate: string;
   lastUpdated: string;
   resumeVersionId: string;
+  resumeFileName?: string;
+  resumeLabel?: string;
   notes?: string;
 };
 

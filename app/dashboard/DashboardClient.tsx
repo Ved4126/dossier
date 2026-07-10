@@ -57,29 +57,36 @@ export default function DashboardClient({ user }: DashboardClientProps) {
       }
 
       const mappedApplications: StoredApplication[] = data.applications.map(
-        (application: {
-          id: string;
-          company: string;
-          role: string;
-          jobDescription: string;
-          status: string;
-          appliedDate: string | null;
-          updatedAt: string;
-          resumeVersionId: string | null;
-        }) => ({
-          id: application.id,
-          company: application.company,
-          role: application.role,
-          jobDescription: application.jobDescription,
-          status: fromDatabaseStatus(application.status),
-          appliedDate: application.appliedDate
-            ? application.appliedDate.slice(0, 10)
-            : "Unknown",
-          lastUpdated: application.updatedAt,
-          resumeVersionId: application.resumeVersionId || "",
-          notes: "",
-        })
-      );
+  (application: {
+    id: string;
+    company: string;
+    role: string;
+    jobDescription: string;
+    status: string;
+    appliedDate: string | null;
+    updatedAt: string;
+    resumeVersionId: string | null;
+    resumeVersion: {
+      id: string;
+      label: string;
+      fileName: string;
+    } | null;
+  }) => ({
+    id: application.id,
+    company: application.company,
+    role: application.role,
+    jobDescription: application.jobDescription,
+    status: fromDatabaseStatus(application.status),
+    appliedDate: application.appliedDate
+      ? application.appliedDate.slice(0, 10)
+      : "Unknown",
+    lastUpdated: application.updatedAt,
+    resumeVersionId: application.resumeVersionId || "",
+    resumeFileName: application.resumeVersion?.fileName || "",
+    resumeLabel: application.resumeVersion?.label || "",
+    notes: "",
+  })
+);
 
       setApplications(mappedApplications);
     } catch {

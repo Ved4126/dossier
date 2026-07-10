@@ -18,8 +18,10 @@ import { StatusBadge } from "@/components/dossier/StatusBadge";
 import type { ApplicationStatus } from "@/lib/storage";
 
 type ResumeVersion = {
+  id: string;
   label: string;
   fileName: string;
+  fileUrl: string;
   uploadedAt: string;
   mimeType: string | null;
 } | null;
@@ -322,12 +324,29 @@ export default function CaseDetailClient({
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  <ActionBtn icon={Eye}>View</ActionBtn>
-                  <ActionBtn icon={Download}>Download</ActionBtn>
-                  <ActionBtn icon={RefreshCw} variant="ghost">
-                    Swap
-                  </ActionBtn>
-                </div>
+  <a
+  href={`/api/resumes/${app.resumeVersion.id}`}
+  target="_blank"
+  rel="noreferrer"
+  className="inline-flex items-center gap-2 font-typewriter text-xs uppercase tracking-widest px-3 py-2 rounded-sm transition bg-stamp text-paper hover:bg-stamp-dark"
+>
+  <Eye className="h-4 w-4" />
+  View
+</a>
+
+<a
+  href={`/api/resumes/${app.resumeVersion.id}`}
+  download={app.resumeVersion.fileName}
+  className="inline-flex items-center gap-2 font-typewriter text-xs uppercase tracking-widest px-3 py-2 rounded-sm transition bg-stamp text-paper hover:bg-stamp-dark"
+>
+  <Download className="h-4 w-4" />
+  Download
+</a>
+
+  <ActionBtn icon={RefreshCw} variant="ghost">
+    Swap
+  </ActionBtn>
+</div>
               </div>
             ) : (
               <div className="mt-4 paper-card rounded-sm p-4">
