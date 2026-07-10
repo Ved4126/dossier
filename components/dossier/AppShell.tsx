@@ -84,9 +84,14 @@ function TopBar() {
         >
           Resume Library
         </Link>
-        <button className="ml-auto sm:ml-0 h-9 w-9 rounded-full bg-paper-2 border border-paper-edge flex items-center justify-center text-ink-soft hover:text-stamp">
-          <User className="h-4 w-4" />
-        </button>
+        <Link
+  href="/settings"
+  aria-label="Open settings"
+  title="Open settings"
+  className="h-10 w-10 rounded-full border border-ink/20 bg-paper-2 flex items-center justify-center text-ink-soft hover:text-stamp hover:border-stamp/50 transition"
+>
+  <User className="h-5 w-5" />
+</Link>
       </div>
     </header>
   );
