@@ -26,6 +26,16 @@ type ResumeVersion = {
   mimeType: string | null;
 } | null;
 
+type ResumeOption = {
+  id: string;
+  label: string;
+  fileName: string;
+  fileUrl: string;
+  mimeType: string | null;
+  uploadedAt: string;
+  linkedApplications: number;
+};
+
 type CaseDetailApplication = {
   id: string;
   company: string;
@@ -78,12 +88,88 @@ export default function CaseDetailClient({
   const [app, setApp] = useState(application);
   const [editing, setEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSwappingResume, setIsSwappingResume] = useState(false);
+const [resumeOptions, setResumeOptions] = useState<ResumeOption[]>([]);
+const [selectedSwapResumeId, setSelectedSwapResumeId] = useState(
+  application.resumeVersion?.id || ""
+);
   const [draft, setDraft] = useState({
     company: application.company,
     role: application.role,
     jobDescription: application.jobDescription,
   });
 
+  async function loadResumeOptions() {
+  try {
+    const response = await fetch("/api/resumes");
+    const data = await response.json();
+
+    if (!response.ok) {
+      toast.error(data.error || "Could not load resumes.");
+      return;
+    }
+
+    setResumeOptions(data.resumes);
+  } catch {
+    toast.error("Something went wrong while loading resumes.");
+  }
+}
+
+async function openSwapResume() {
+  setSelectedSwapResumeId(app.resumeVersion?.id || "");
+  setIsSwappingResume(true);
+  await loadResumeOptions();
+}
+
+async function saveResumeSwap() {
+  setIsSaving(true);
+
+  try {
+    const response = await fetch(`/api/applications/${app.id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        resumeVersionId: selectedSwapResumeId || null,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      toast.error(data.error || "Could not swap resume.");
+      return;
+    }
+
+    const selectedResume =
+      resumeOptions.find((resume) => resume.id === selectedSwapResumeId) ||
+      null;
+
+    setApp({
+      ...app,
+      resumeVersion: selectedResume
+        ? {
+            id: selectedResume.id,
+            label: selectedResume.label,
+            fileName: selectedResume.fileName,
+            fileUrl: selectedResume.fileUrl,
+            uploadedAt: selectedResume.uploadedAt.slice(0, 10),
+            mimeType: selectedResume.mimeType,
+          }
+        : null,
+      lastUpdated: new Date().toISOString().slice(0, 10),
+    });
+
+    setIsSwappingResume(false);
+    toast.success("Linked resume swapped.");
+    router.refresh();
+  } catch {
+    toast.error("Something went wrong while swapping resume.");
+  } finally {
+    setIsSaving(false);
+  }
+}
   function startEdit() {
     setDraft({
       company: app.company,
@@ -285,6 +371,50 @@ export default function CaseDetailClient({
 
         <section className="mt-8">
           <div className="paper-card-2 rounded-md p-6 border-l-4 border-stamp relative">
+
+            {isSwappingResume && (
+  <div className="mt-4 rounded-sm border-2 border-dashed border-paper-edge bg-paper/60 p-4 space-y-3">
+    <div>
+      <label className="block font-typewriter text-xs uppercase tracking-widest text-ink-soft mb-2">
+        Swap Linked Resume
+      </label>
+
+      <select
+        value={selectedSwapResumeId}
+        onChange={(event) => setSelectedSwapResumeId(event.target.value)}
+        className="w-full rounded-sm border border-paper-edge bg-white/80 px-3 py-2 text-sm text-ink outline-none focus:border-stamp"
+      >
+        <option value="">No resume linked</option>
+
+        {resumeOptions.map((resume) => (
+          <option key={resume.id} value={resume.id}>
+            {resume.label} — {resume.fileName}
+          </option>
+        ))}
+      </select>
+    </div>
+
+    <div className="flex flex-wrap gap-2">
+      <button
+        type="button"
+        onClick={saveResumeSwap}
+        disabled={isSaving}
+        className="font-typewriter uppercase tracking-widest text-xs bg-stamp text-paper px-4 py-2 rounded-sm hover:bg-stamp-dark transition disabled:opacity-60 disabled:cursor-not-allowed"
+      >
+        {isSaving ? "Saving..." : "Save Resume"}
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setIsSwappingResume(false)}
+        disabled={isSaving}
+        className="font-typewriter uppercase tracking-widest text-xs border-2 border-ink/30 text-ink px-4 py-2 rounded-sm hover:bg-paper-2 transition disabled:opacity-60 disabled:cursor-not-allowed"
+      >
+        Cancel
+      </button>
+    </div>
+  </div>
+)}
             <div
               className="absolute -top-3 left-6 stamp text-xs stamp-in"
               style={{ animationDelay: "300ms" }}
@@ -343,9 +473,16 @@ export default function CaseDetailClient({
   Download
 </a>
 
-  <ActionBtn icon={RefreshCw} variant="ghost">
-    Swap
-  </ActionBtn>
+  <ActionBtn
+  icon={RefreshCw}
+  variant="ghost"
+  onClick={openSwapResume}
+  disabled={isSaving}
+>
+  Swap
+</ActionBtn>
+
+
 </div>
               </div>
             ) : (
