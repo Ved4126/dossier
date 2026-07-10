@@ -1,6 +1,31 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { applications, resumes, statusList } from "@/lib/mock-data";
+import { prisma } from "@/lib/prisma";
+
+const statusList = [
+  "Applied",
+  "Online Assessment",
+  "Interview",
+  "Rejected",
+  "Offer",
+] as const;
+
+function fromDatabaseStatus(status: string) {
+  switch (status) {
+    case "APPLIED":
+      return "Applied";
+    case "OA":
+      return "Online Assessment";
+    case "INTERVIEW":
+      return "Interview";
+    case "REJECTED":
+      return "Rejected";
+    case "OFFER":
+      return "Offer";
+    default:
+      return "Applied";
+  }
+}
 
 export default async function Analytics() {
   const user = await getCurrentUser();
@@ -9,14 +34,79 @@ export default async function Analytics() {
     redirect("/auth");
   }
 
+  const applications = await prisma.application.findMany({
+    where: {
+      userId: user.id,
+    },
+    include: {
+      resumeVersion: true,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  const resumes = await prisma.resumeVersion.findMany({
+    where: {
+      userId: user.id,
+    },
+    include: {
+      applications: true,
+    },
+    orderBy: {
+      uploadedAt: "desc",
+    },
+  });
+
   const total = applications.length;
 
-  const breakdown = statusList.map((s) => ({
-    status: s,
-    count: applications.filter((a) => a.status === s).length,
+  const breakdown = statusList.map((status) => ({
+    status,
+    count: applications.filter(
+      (application) => fromDatabaseStatus(application.status) === status
+    ).length,
   }));
 
-  const max = Math.max(1, ...breakdown.map((b) => b.count));
+  const max = Math.max(1, ...breakdown.map((item) => item.count));
+
+  const totalInterviews = applications.filter(
+    (application) =>
+      application.status === "INTERVIEW" || application.status === "OFFER"
+  ).length;
+
+  const interviewRate =
+    total > 0 ? Math.round((totalInterviews / total) * 100) : 0;
+
+  const totalOffers = applications.filter(
+    (application) => application.status === "OFFER"
+  ).length;
+
+  const linkedApplications = applications.filter(
+    (application) => application.resumeVersionId
+  ).length;
+
+  const resumePerformance = resumes.map((resume) => {
+    const linkedCases = resume.applications;
+
+    const interviews = linkedCases.filter(
+      (application) =>
+        application.status === "INTERVIEW" || application.status === "OFFER"
+    ).length;
+
+    const rate =
+      linkedCases.length > 0
+        ? Math.round((interviews / linkedCases.length) * 100)
+        : null;
+
+    return {
+      id: resume.id,
+      label: resume.label,
+      fileName: resume.fileName,
+      linkedCount: linkedCases.length,
+      interviews,
+      interviewRate: rate,
+    };
+  });
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -38,32 +128,39 @@ export default async function Analytics() {
         </p>
       </header>
 
+      <section className="grid sm:grid-cols-4 gap-4 mb-10">
+        <StatCard label="Total Cases" value={total} />
+        <StatCard label="Interview Rate" value={`${interviewRate}%`} />
+        <StatCard label="Offers" value={totalOffers} />
+        <StatCard label="Linked Resumes" value={linkedApplications} />
+      </section>
+
       <section className="mb-10">
         <h2 className="font-typewriter text-sm uppercase tracking-widest text-ink-soft mb-3">
           Status Breakdown
         </h2>
 
         <div className="paper-card-2 rounded-md p-6 space-y-3">
-          {breakdown.map((b) => (
+          {breakdown.map((item) => (
             <div
-              key={b.status}
+              key={item.status}
               className="grid grid-cols-[160px_1fr_auto] gap-3 items-center"
             >
               <div className="font-typewriter text-xs uppercase tracking-widest text-ink">
-                {b.status}
+                {item.status}
               </div>
 
               <div className="h-6 paper-card rounded-sm overflow-hidden relative">
                 <div
                   className="h-full bg-stamp/80 transition-all"
                   style={{
-                    width: `${(b.count / max) * 100}%`,
+                    width: `${(item.count / max) * 100}%`,
                   }}
                 />
               </div>
 
               <div className="font-typewriter text-ink text-lg tabular-nums">
-                {b.count}
+                {item.count}
               </div>
             </div>
           ))}
@@ -80,22 +177,29 @@ export default async function Analytics() {
           Resume Performance
         </h2>
 
-        <div className="grid sm:grid-cols-2 gap-5">
-          {resumes.map((r, i) => {
-            const interviews = Math.round(
-              ((r.interviewRate ?? 0) / 100) * r.linkedCount
-            );
+        {resumePerformance.length === 0 ? (
+          <div className="paper-card rounded-md p-10 text-center">
+            <h3 className="font-typewriter text-xl text-ink">
+              No resume evidence yet.
+            </h3>
 
-            return (
+            <p className="text-ink-soft mt-2">
+              Upload resume versions and link them to cases to see performance
+              patterns here.
+            </p>
+          </div>
+        ) : (
+          <div className="grid sm:grid-cols-2 gap-5">
+            {resumePerformance.map((resume, index) => (
               <div
-                key={r.id}
+                key={resume.id}
                 className="relative float-in"
                 style={{
-                  animationDelay: `${i * 80}ms`,
+                  animationDelay: `${index * 80}ms`,
                 }}
               >
                 <div
-                  className={i % 2 === 0 ? "pin-head" : "pin-head-gold"}
+                  className={index % 2 === 0 ? "pin-head" : "pin-head-gold"}
                   style={{
                     left: "50%",
                     transform: "translateX(-50%)",
@@ -104,18 +208,18 @@ export default async function Analytics() {
                 />
 
                 <div className="paper-card rounded-sm p-5 pt-6">
-                  <div className="flex items-start justify-between">
+                  <div className="flex items-start justify-between gap-4">
                     <div>
                       <div className="font-typewriter text-[10px] uppercase tracking-widest text-ink-soft">
                         Exhibit
                       </div>
 
                       <h3 className="font-typewriter text-lg text-ink mt-1">
-                        {r.label}
+                        {resume.label}
                       </h3>
 
-                      <div className="font-typewriter text-xs text-ink-soft">
-                        {r.fileName}
+                      <div className="font-typewriter text-xs text-ink-soft break-all">
+                        {resume.fileName}
                       </div>
                     </div>
 
@@ -125,7 +229,9 @@ export default async function Analytics() {
                       </div>
 
                       <div className="font-typewriter text-3xl text-stamp">
-                        {r.interviewRate !== null ? `${r.interviewRate}%` : "—"}
+                        {resume.interviewRate !== null
+                          ? `${resume.interviewRate}%`
+                          : "—"}
                       </div>
                     </div>
                   </div>
@@ -137,7 +243,7 @@ export default async function Analytics() {
                       </div>
 
                       <div className="font-typewriter text-xl text-ink">
-                        {r.linkedCount}
+                        {resume.linkedCount}
                       </div>
                     </div>
 
@@ -147,16 +253,36 @@ export default async function Analytics() {
                       </div>
 
                       <div className="font-typewriter text-xl text-ink">
-                        {r.interviewRate !== null ? interviews : "—"}
+                        {resume.linkedCount > 0 ? resume.interviews : "—"}
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
+    </div>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | number;
+}) {
+  return (
+    <div className="paper-card rounded-md p-4">
+      <div className="font-typewriter text-[10px] uppercase tracking-widest text-ink-soft">
+        {label}
+      </div>
+
+      <div className="font-typewriter text-2xl text-ink mt-2">
+        {value}
+      </div>
     </div>
   );
 }
